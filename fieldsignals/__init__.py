@@ -32,75 +32,87 @@ class ChangedFieldsSignal(Signal):
         if not fields:
             raise ValueError("fields must be non-empty")
         
-        # sender._fieldsignals_fields looks like this:
+        proxy_receiver = self._make_proxy_receiver(receiver, sender, fields)
+        
+        super(ChangedFieldsSignal, self).connect(proxy_receiver, sender=sender, weak=weak, dispatch_uid=dispatch_uid)
+        
+        ### post_init : initialize the list of fields for each instance
+        def post_init_closure(sender, instance, **kwargs):
+            self.get_and_update_changed_fields(receiver, instance, fields)
+        _signals.post_init.connect(post_init_closure, sender=sender, dispatch_uid=(self, receiver))
+        self.connect_source_signals(sender)
+    
+    def connect_source_signals(self, sender):
+        """
+        Connects the source signals required to trigger updates for this
+        ChangedFieldsSignal.
+        
+        (post_init has already been connected during __init__)
+        """
+        # override in subclasses
+        pass
+    
+    def _make_proxy_receiver(self, receiver, sender, fields):
+        """
+        Takes a receiver function and creates a closure around it that knows what fields
+        to watch. The original receiver is called for an instance iff the value of
+        at least one of the fields has changed since the last time it was called.
+        """
+        def pr(instance, *args, **kwargs):
+            changed_fields = self.get_and_update_changed_fields(receiver, instance, fields)
+            if changed_fields:
+                receiver(instance, changed_fields=changed_fields, *args, **kwargs)
+        
+        pr._original_receiver = receiver
+        pr._fields = fields
+        
+        pr.__doc__ = receiver.__doc__
+        pr.__name__ = receiver.__name__
+        return pr
+    
+    def get_and_update_changed_fields(self, receiver, instance, fields):
+        """
+        Takes a receiver and a model instance, and a list of field instances.
+        Gets the old and new values for each of the given fields, and stores their
+        new values for next time.
+        
+        Returns a dict like this:
+            {
+                <field1> : ("old value", "new value"),
+            }
+        """
+        # instance._fieldsignals_originals looks like this:
         #   {
-        #       <signal instance> : [field1, field2...],
+        #       (<signal instance>, <receiver>) : {<field instance>: "old value",},
         #   }
+        if not hasattr(instance, '_fieldsignals_originals'):
+            sender._fieldsignals_originals = {}
+        originals = sender._fieldsignals_originals[(self, receiver)]
+        changed_fields = {}
         
-        if not hasattr(sender, '_fieldsignals_fields'):
-            sender._fieldsignals_fields = {}
-        
-        if self in sender._fieldsignals_fields:
-            # TODO: find a way to fix this without data from multiple signals conflicting with each other
-            raise ValueError("This signal has already been registered for this model, and can't be registered twice.")
-        
-        sender._fieldsignals_fields[self] = fields
-        
-        super(ChangedFieldsSignal, self).connect(receiver, sender=sender, weak=weak, dispatch_uid=dispatch_uid)
+        for field in fields:
+            # using value_from_object instead of getattr() means we don't traverse foreignkeys
+            new_value = field.value_from_object(instance)
+            old_value = originals.get(field, None)
+            if old_value != new_value:
+                changed_fields[field] = (old_value, new_value)
+            # now update, for next time
+            originals[field] = new_value
+        return changed_fields    
 
 
 ### API:
 
-post_fields_changed = ChangedFieldsSignal(providing_args=["instance", "changed_fields", "created", "using"])
+class PostSaveChangedFieldsSignal(ChangedFieldsSignal):
+    def _on_model_post_save(self, sender, instance=None, created=None, using=None, **kwargs):
+        # changed_fields=[...] is added by the proxy receiver for each receiver
+        return self.send_robust(sender, instance=instance, created=created, using=using)
+    
+    def connect_source_signals(self, sender):
+        _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
+
+post_fields_changed = PostSaveChangedFieldsSignal(providing_args=["instance", "changed_fields", "created", "using"])
 
 #TODO other signals
 
 
-
-
-
-
-### Utilities
-
-def update_watched_fields(sender, instance, signal_instance):
-    # see comment explaining sender._fieldsignals_fields in ChangedFieldsSignal.connect()
-    
-    watched_fields = sender._fieldsignals_fields.get(signal_instance, [])
-    if watched_fields:
-        if not hasattr(instance, '_fieldsignals_originals'):
-            instance._fieldsignals_originals = {}
-        
-        instance._fieldsignals_originals[signal_instance] = originals = {}
-        
-        for field in watched_fields:
-            # value_from_object() returns a field's *raw* value (i.e. don't try to look up foreignkeys etc)
-            originals[field.name] = field.value_from_object(instance)
-
-def get_changed_fields(sender, instance, signal_instance):
-    # see comment explaining sender._fieldsignals_fields in ChangedFieldsSignal.connect()
-    changed_fields = {}
-    originals = getattr(instance, '_fieldsignals_originals', {}).get(signal_instance, {})
-    if originals:
-        for field, old_value in originals.items():
-            new_value = field.value_from_object(instance)
-            if old_value != new_value:
-                changed_fields[field.name] = (old_value, new_value)
-    return changed_fields
-
-
-### SOURCE signals - set up signal receivers to make stuff work
-
-# post_init : to keep track of the original versions of fields.
-def post_model_init(sender, instance, **kwargs):
-    watched_fields = getattr(sender, '_fieldsignals_fields', {})
-    for signal_instance in watched_fields.keys():
-        update_watched_fields(sender, instance, signal_instance)
-_signals.post_init.connect(post_model_init)
-
-# post_save : to trigger `post_fields_changed`
-def on_model_post_save(sender, instance, **kwargs):
-    changed_fields = get_changed_fields(sender, instance, post_fields_changed)
-    if changed_fields:
-        post_fields_changed.send(sender=sender, instance=instance, changed_fields=changed_fields, **kwargs)
-        update_watched_fields(sender, instance)
-_signals.post_save.connect(on_model_post_save)
