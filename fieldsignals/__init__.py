@@ -15,49 +15,22 @@ class ChangedFieldsSignal(Signal):
     
     def connect(self, receiver, sender=None, fields=None, weak=True, dispatch_uid=None, **kwargs):
         """
-        Connect a FieldSignal. Valid forms::
-            foo.connect(func, sender=MyModel.myfield)
-            foo.connect(func, sender=MyModel, fields='myfield')
+        Connect a FieldSignal. Usage::
+        
             foo.connect(func, sender=MyModel, fields=['myfield1', 'myfield2'])
-            foo.connect(func, sender=MyModel, fields=[MyModel.myfield1, MyModel.myfield2])
-            foo.connect(func, fields=[MyModel.myfield1, MyModel.myfield2])
         """
         
-        # Validate arguments. This method's pretty flexible.
-        if not (fields or sender):
-            raise ValueError("Either sender or fields (or both) must be supplied")
+        # Validate arguments
+        if not issubclass(sender, Model):
+            raise ValueError("sender should be a model class")
         
-        if fields is not None:
-            if not isinstance(fields, (tuple, list)):
-                fields = [fields]
-            elif len(fields) == 0:
-                raise ValueError("fields must be non-empty")
+        if fields is None:
+            fields = sender._meta.fields[:]
+        else:
+            fields = [sender._meta.get_field(f) for f in fields]
         
-        if isinstance(sender, Model):
-            raise ValueError("This signal requires a model class or field, not a model instance.")
-        elif isinstance(sender, Field):
-            if fields is not None:
-                raise ValueError("sender is a Field instance but fields was also supplied")
-            fields = [sender]
-            sender = fields[0].model
-        elif sender is None or issubclass(sender, Model):
-            if fields is None:
-                fields = sender._meta.fields[:]
-            else:
-                sender = fields[0].model
-                _fields = fields
-                fields = []
-                for field in _fields:
-                    if isinstance(field, basestring):
-                        field = sender._meta.get_field(field)
-                    if (not isinstance(field, Field)) or field.model is not sender:
-                        raise ValueError("%r is not a valid field for this model" % field)
-                    fields.append(field)
-        
-        # Just clarifying - thanks to the above code:
-        #   - `sender` should now be a Model subclass
-        #   - `fields` should now be a non-empty list of Field instances on the sender model.
-        
+        if not fields:
+            raise ValueError("fields must be non-empty")
         
         # sender._fieldsignals_fields looks like this:
         #   {
