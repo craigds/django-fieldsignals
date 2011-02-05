@@ -1,12 +1,12 @@
 
-__all__ = ('post_fields_changed',)
+__all__ = ('pre_save_changed', 'post_save_changed',)
 
 from django.db.models import Model
 from django.db.models import signals as _signals
 from django.dispatch import Signal
 
 
-class ChangedFieldsSignal(Signal):
+class ChangedSignal(Signal):
     """
     A Signal which can be connected for a list of fields (or field names).
     The given receiver is only called when one or more of the given fields has changed.
@@ -42,7 +42,7 @@ class ChangedFieldsSignal(Signal):
         
         proxy_receiver = self._make_proxy_receiver(receiver, sender, fields)
         
-        super(ChangedFieldsSignal, self).connect(proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid)
+        super(ChangedSignal, self).connect(proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid)
         
         ### post_init : initialize the list of fields for each instance
         def post_init_closure(sender, instance, **kwargs):
@@ -53,7 +53,7 @@ class ChangedFieldsSignal(Signal):
     def connect_source_signals(self, sender):
         """
         Connects the source signals required to trigger updates for this
-        ChangedFieldsSignal.
+        ChangedSignal.
         
         (post_init has already been connected during __init__)
         """
@@ -112,20 +112,24 @@ class ChangedFieldsSignal(Signal):
         return changed_fields    
 
 
-### API:
+class PreSaveChangedSignal(ChangedSignal):
+    def _on_model_pre_save(self, sender, instance=None, **kwargs):
+        return self.send_robust(sender, instance=instance)
+    
+    def connect_source_signals(self, sender):
+        _signals.pre_save.connect(self._on_model_pre_save, sender=sender, dispatch_uid=id(self))
 
-class PostSaveChangedFieldsSignal(ChangedFieldsSignal):
+class PostSaveChangedSignal(ChangedSignal):
     def _on_model_post_save(self, sender, instance=None, created=None, using=None, **kwargs):
-        # changed_fields=[...] is added by the proxy receiver for each receiver
         return self.send_robust(sender, instance=instance, created=created, using=using)
     
     def connect_source_signals(self, sender):
-        # using a dispatch_uid so we only connect one post_save() for each model
-        # (regardless of how many receivers we have)
         _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
 
-post_fields_changed = PostSaveChangedFieldsSignal(providing_args=["instance", "changed_fields", "created", "using"])
 
-#TODO other signals
+### API:
 
+pre_save_changed = PreSaveChangedSignal(providing_args=["instance", "changed_fields"])
+post_save_changed = PostSaveChangedSignal(providing_args=["instance", "changed_fields", "created", "using"])
 
+#TODO other signals?
