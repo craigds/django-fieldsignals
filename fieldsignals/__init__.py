@@ -1,7 +1,6 @@
 
 __all__ = ('post_fields_changed',)
 
-from django.db.models.fields import Field
 from django.db.models import Model
 from django.db.models import signals as _signals
 from django.dispatch import Signal
@@ -13,7 +12,7 @@ class ChangedFieldsSignal(Signal):
     The given receiver is only called when one or more of the given fields has changed.
     """
     
-    def connect(self, receiver, sender=None, fields=None, weak=True, dispatch_uid=None, **kwargs):
+    def connect(self, receiver, sender=None, fields=None, dispatch_uid=None, **kwargs):
         """
         Connect a FieldSignal. Usage::
         
@@ -21,6 +20,15 @@ class ChangedFieldsSignal(Signal):
         """
         
         # Validate arguments
+        
+        if kwargs.get('weak', False):
+            # TODO: weak refs? I'm hella confused.
+            # We can't go passing our proxy receivers around as weak refs, since they're
+            # defined as closures and hence don't exist by the time they're called.
+            # However, we can probably make _make_proxy_receiver() create weakrefs to
+            # the original receiver if required. Patches welcome
+            raise NotImplementedError("This signal doesn't yet handle weak refs")
+        
         if not issubclass(sender, Model):
             raise ValueError("sender should be a model class")
         
@@ -34,12 +42,12 @@ class ChangedFieldsSignal(Signal):
         
         proxy_receiver = self._make_proxy_receiver(receiver, sender, fields)
         
-        super(ChangedFieldsSignal, self).connect(proxy_receiver, sender=sender, weak=weak, dispatch_uid=dispatch_uid)
+        super(ChangedFieldsSignal, self).connect(proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid)
         
         ### post_init : initialize the list of fields for each instance
         def post_init_closure(sender, instance, **kwargs):
             self.get_and_update_changed_fields(receiver, instance, fields)
-        _signals.post_init.connect(post_init_closure, sender=sender, dispatch_uid=(self, receiver))
+        _signals.post_init.connect(post_init_closure, sender=sender, weak=False, dispatch_uid=(self, receiver))
         self.connect_source_signals(sender)
     
     def connect_source_signals(self, sender):
@@ -61,7 +69,7 @@ class ChangedFieldsSignal(Signal):
         def pr(instance, *args, **kwargs):
             changed_fields = self.get_and_update_changed_fields(receiver, instance, fields)
             if changed_fields:
-                receiver(instance, changed_fields=changed_fields, *args, **kwargs)
+                receiver(instance=instance, changed_fields=changed_fields, *args, **kwargs)
         
         pr._original_receiver = receiver
         pr._fields = fields
@@ -85,9 +93,12 @@ class ChangedFieldsSignal(Signal):
         #   {
         #       (<signal instance>, <receiver>) : {<field instance>: "old value",},
         #   }
+        key = (self, receiver)
         if not hasattr(instance, '_fieldsignals_originals'):
-            sender._fieldsignals_originals = {}
-        originals = sender._fieldsignals_originals[(self, receiver)]
+            instance._fieldsignals_originals = {}
+        if not key in instance._fieldsignals_originals:
+            instance._fieldsignals_originals[key] = {}
+        originals = instance._fieldsignals_originals[key]
         changed_fields = {}
         
         for field in fields:
@@ -109,6 +120,8 @@ class PostSaveChangedFieldsSignal(ChangedFieldsSignal):
         return self.send_robust(sender, instance=instance, created=created, using=using)
     
     def connect_source_signals(self, sender):
+        # using a dispatch_uid so we only connect one post_save() for each model
+        # (regardless of how many receivers we have)
         _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
 
 post_fields_changed = PostSaveChangedFieldsSignal(providing_args=["instance", "changed_fields", "created", "using"])
