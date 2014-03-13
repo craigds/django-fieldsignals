@@ -114,7 +114,7 @@ class ChangedSignal(Signal):
 
 class PreSaveChangedSignal(ChangedSignal):
     def _on_model_pre_save(self, sender, instance=None, **kwargs):
-        return self.send_robust(sender, instance=instance)
+        return self.send(sender, instance=instance)
 
     def connect_source_signals(self, sender):
         _signals.pre_save.connect(self._on_model_pre_save, sender=sender, dispatch_uid=id(self))
@@ -122,7 +122,7 @@ class PreSaveChangedSignal(ChangedSignal):
 
 class PostSaveChangedSignal(ChangedSignal):
     def _on_model_post_save(self, sender, instance=None, created=None, using=None, **kwargs):
-        return self.send_robust(sender, instance=instance, created=created, using=using)
+        return self.send(sender, instance=instance, created=created, using=using)
 
     def connect_source_signals(self, sender):
         _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
