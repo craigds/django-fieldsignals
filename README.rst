@@ -42,3 +42,20 @@ new values of your fields::
     
     pre_save_changed.connect(print_all_field_changes, sender=Poll)
 
+Installation
+-----------
+
+1. This library is on PyPI so you can install it with::
+
+    pip install django-fieldsignals
+
+or from github::
+
+    pip install git+https://github.com/craigds/django-fieldsignals.git#egg=django-fieldsignals
+
+2. Add "polls" to your INSTALLED_APPS setting like this::
+
+    INSTALLED_APPS = (
+        ...
+        'fieldsignals',
+    )
