@@ -8,7 +8,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-fieldsignals',
-    version='0.1',
+    version='0.1.1',
     packages=['fieldsignals'],
     include_package_data=True,
     description='Django fieldsignals simply makes it easy to tell when the fields on your model have changed.',
