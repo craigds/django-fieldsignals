@@ -13,7 +13,7 @@ setup(
     include_package_data=True,
     description='Django fieldsignals simply makes it easy to tell when the fields on your model have changed.',
     long_description=README,
-    url='https://github.com/PetrDlouhy/django-fieldsignals',
+    url='https://github.com/craigds/django-fieldsignals',
     author='Craig de Stigter',
     author_email='craig.ds@gmail.com',
     classifiers=[
