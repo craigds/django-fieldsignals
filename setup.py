@@ -8,9 +8,10 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-fieldsignals',
-    version='0.1.1',
-    packages=['fieldsignals'],
+    version='0.2.0',
+    packages=['fieldsignals', 'fieldsignals.tests'],
     include_package_data=True,
+    test_suite='fieldsignals.tests.test_signals',
     description='Django fieldsignals simply makes it easy to tell when the fields on your model have changed.',
     long_description=README,
     url='https://github.com/craigds/django-fieldsignals',
@@ -22,10 +23,12 @@ setup(
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        # Replace these appropriately if you are stuck on Python 2.
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
