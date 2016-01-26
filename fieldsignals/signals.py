@@ -35,8 +35,13 @@ class ChangedSignal(Signal):
 
         if fields is None:
             fields = sender._meta.get_fields()
+            fields = [f for f in fields if not (f.many_to_many or f.one_to_many)]
         else:
             fields = [f for f in sender._meta.get_fields() if f.name in set(fields)]
+            blacklist = [f for f in fields if (f.many_to_many or f.one_to_many)]
+
+            if blacklist:
+                raise ValueError("django-fieldsignals doesn't handle many-to-many or one-to-many fields.")
 
         if not fields:
             raise ValueError("fields must be non-empty")

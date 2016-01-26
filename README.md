@@ -66,3 +66,7 @@ or from github:
         'fieldsignals',
     )
 ```
+
+# Notes
+
+* Currently no support for `ManyToManyField` or reverse side of `ForeignKey` (one to many).

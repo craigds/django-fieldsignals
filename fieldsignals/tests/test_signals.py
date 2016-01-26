@@ -36,8 +36,10 @@ def func(*args, **kwargs):
 
 
 class Field(object):
-    def __init__(self, name):
+    def __init__(self, name, m2m=False):
         self.name = name
+        self.many_to_many = m2m
+        self.one_to_many = False
 
     def value_from_object(self, instance):
         return getattr(instance, self.name)
@@ -46,6 +48,7 @@ class Field(object):
 class FakeModel(object):
     a_key = 'a value'
     another = 'something else'
+    m2m = []
 
     class _meta(object):
         @staticmethod
@@ -53,6 +56,7 @@ class FakeModel(object):
             return [
                 Field('a_key'),
                 Field('another'),
+                Field('m2m', m2m=True),
             ]
 
 
@@ -95,6 +99,11 @@ class TestPostSave(TestCase):
 
             obj.another = 'dont care about this field'
             post_save.send(instance=obj, sender=FakeModel)
+
+    def test_post_save_with_m2m_fields_error(self):
+        with must_be_called(False) as func:
+            with self.assertRaises(ValueError):
+                post_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
 
 
 class TestPreSave(TestCase):
@@ -140,6 +149,11 @@ class TestPreSave(TestCase):
 
             obj.another = 'dont care about this field'
             pre_save.send(instance=obj, sender=FakeModel)
+
+    def test_pre_save_with_m2m_fields_error(self):
+        with must_be_called(False) as func:
+            with self.assertRaises(ValueError):
+                pre_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
 
 
 if __name__ == '__main__':
