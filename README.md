@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/craigds/django-fieldsignals.svg?branch=master)](https://travis-ci.org/craigds/django-fieldsignals) [![Flattr me](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=craigds&url=https://github.com/craigds/django-fieldsignals/&title=django-fieldsignals&language=en_GB&tags=django,python,github&category=software)
+
 # Introduction
 
 django-fieldsignals simply makes it easy to tell when the fields on your model have changed.
