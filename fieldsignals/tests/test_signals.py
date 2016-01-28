@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from collections import namedtuple
 from unittest import main, TestCase
 
+from django.apps import apps
+from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import OneToOneRel
 from django.db.models.signals import post_save, post_init, pre_save
 
@@ -81,7 +83,35 @@ class FakeModelWithOneToOne(object):
             ]
 
 
+class TestGeneral(TestCase):
+    def setUp(self):
+        apps.ready = True
+
+    def test_m2m_fields_error(self):
+        with must_be_called(False) as func:
+            with self.assertRaises(ValueError):
+                post_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
+
+    def test_one_to_one_rel_field_error(self):
+        with must_be_called(False) as func:
+            with self.assertRaises(ValueError):
+                post_save_changed.connect(func, sender=FakeModelWithOneToOne, fields=('o2o', 'f'))
+
+    def test_one_to_one_rel_excluded(self):
+        with must_be_called(False) as func:
+            post_save_changed.connect(func, sender=FakeModelWithOneToOne)
+
+    def test_app_cache_not_ready(self):
+        apps.ready = False
+        with self.assertRaisesRegexp(AppRegistryNotReady, r"django-fieldsignals signals.*"):
+            post_save_changed.connect(func, sender=FakeModel)
+
+
+
 class TestPostSave(TestCase):
+    def setUp(self):
+        apps.ready = True
+
     def test_post_save_unchanged(self):
         with must_be_called(False) as func:
             post_save_changed.connect(func, sender=FakeModel)
@@ -121,22 +151,11 @@ class TestPostSave(TestCase):
             obj.another = 'dont care about this field'
             post_save.send(instance=obj, sender=FakeModel)
 
-    def test_post_save_with_m2m_fields_error(self):
-        with must_be_called(False) as func:
-            with self.assertRaises(ValueError):
-                post_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
-
-    def test_with_one_to_one_rel_field_error(self):
-        with must_be_called(False) as func:
-            with self.assertRaises(ValueError):
-                post_save_changed.connect(func, sender=FakeModelWithOneToOne, fields=('o2o', 'f'))
-
-    def test_with_one_to_one_rel_excluded(self):
-        with must_be_called(False) as func:
-            post_save_changed.connect(func, sender=FakeModelWithOneToOne)
-
 
 class TestPreSave(TestCase):
+    def setUp(self):
+        apps.ready = True
+
     def test_pre_save_unchanged(self):
         with must_be_called(False) as func:
             pre_save_changed.connect(func, sender=FakeModel)
@@ -179,11 +198,6 @@ class TestPreSave(TestCase):
 
             obj.another = 'dont care about this field'
             pre_save.send(instance=obj, sender=FakeModel)
-
-    def test_pre_save_with_m2m_fields_error(self):
-        with must_be_called(False) as func:
-            with self.assertRaises(ValueError):
-                pre_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
 
 
 if __name__ == '__main__':

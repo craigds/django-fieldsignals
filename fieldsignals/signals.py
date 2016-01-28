@@ -1,3 +1,5 @@
+from django.apps import apps
+from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import ForeignObjectRel
 from django.db.models import signals as _signals
 from django.dispatch import Signal
@@ -18,6 +20,14 @@ class ChangedSignal(Signal):
 
             foo.connect(func, sender=MyModel, fields=['myfield1', 'myfield2'])
         """
+
+        if not apps.ready:
+            # We require access to Model._meta.get_fields(), which isn't available yet.
+            # (This error would be raised below anyway, but we want to add a more meaningful message)
+            raise AppRegistryNotReady(
+                "django-fieldsignals signals must be connected after the app cache is ready. "
+                "Connect the signal in your AppConfig.ready() handler."
+            )
 
         # Validate arguments
 
