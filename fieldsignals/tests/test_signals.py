@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from collections import namedtuple
 from unittest import main, TestCase
 
+from django.db.models.fields.related import OneToOneRel
 from django.db.models.signals import post_save, post_init, pre_save
 
 from fieldsignals.signals import post_save_changed, pre_save_changed
@@ -60,6 +61,26 @@ class FakeModel(object):
             ]
 
 
+class MockOneToOneRel(OneToOneRel):
+    def __init__(self, name):
+        self.name = name
+        self.many_to_many = False
+        self.one_to_many = False
+
+
+class FakeModelWithOneToOne(object):
+    f = 'a value'
+    o2o = 1
+
+    class _meta(object):
+        @staticmethod
+        def get_fields():
+            return [
+                Field('f'),
+                MockOneToOneRel('o2o')
+            ]
+
+
 class TestPostSave(TestCase):
     def test_post_save_unchanged(self):
         with must_be_called(False) as func:
@@ -104,6 +125,15 @@ class TestPostSave(TestCase):
         with must_be_called(False) as func:
             with self.assertRaises(ValueError):
                 post_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
+
+    def test_with_one_to_one_rel_field_error(self):
+        with must_be_called(False) as func:
+            with self.assertRaises(ValueError):
+                post_save_changed.connect(func, sender=FakeModelWithOneToOne, fields=('o2o', 'f'))
+
+    def test_with_one_to_one_rel_excluded(self):
+        with must_be_called(False) as func:
+            post_save_changed.connect(func, sender=FakeModelWithOneToOne)
 
 
 class TestPreSave(TestCase):
