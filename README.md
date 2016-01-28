@@ -70,3 +70,4 @@ or from github:
 # Notes
 
 * Currently no support for `ManyToManyField` or reverse side of `ForeignKey` (one to many).
+* If you've enjoyed this project and want to help me spend more time on open source, flattr me! [![Flattr me](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=craigds&url=https://github.com/craigds/django-fieldsignals/&title=django-fieldsignals&language=en_GB&tags=django,python,github&category=software)
