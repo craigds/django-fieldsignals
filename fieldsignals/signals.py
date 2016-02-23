@@ -21,7 +21,7 @@ class ChangedSignal(Signal):
             foo.connect(func, sender=MyModel, fields=['myfield1', 'myfield2'])
         """
 
-        if not apps.ready:
+        if not apps.models_ready:
             # We require access to Model._meta.get_fields(), which isn't available yet.
             # (This error would be raised below anyway, but we want to add a more meaningful message)
             raise AppRegistryNotReady(
