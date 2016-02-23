@@ -85,7 +85,7 @@ class FakeModelWithOneToOne(object):
 
 class TestGeneral(TestCase):
     def setUp(self):
-        apps.ready = True
+        apps.models_ready = True
 
     def test_m2m_fields_error(self):
         with must_be_called(False) as func:
@@ -102,7 +102,7 @@ class TestGeneral(TestCase):
             post_save_changed.connect(func, sender=FakeModelWithOneToOne)
 
     def test_app_cache_not_ready(self):
-        apps.ready = False
+        apps.models_ready = False
         with self.assertRaisesRegexp(AppRegistryNotReady, r"django-fieldsignals signals.*"):
             post_save_changed.connect(func, sender=FakeModel)
 
@@ -110,7 +110,7 @@ class TestGeneral(TestCase):
 
 class TestPostSave(TestCase):
     def setUp(self):
-        apps.ready = True
+        apps.models_ready = True
 
     def test_post_save_unchanged(self):
         with must_be_called(False) as func:
@@ -154,7 +154,7 @@ class TestPostSave(TestCase):
 
 class TestPreSave(TestCase):
     def setUp(self):
-        apps.ready = True
+        apps.models_ready = True
 
     def test_pre_save_unchanged(self):
         with must_be_called(False) as func:
