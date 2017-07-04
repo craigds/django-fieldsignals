@@ -11,7 +11,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-fieldsignals',
-    version='0.2.3',
+    version='0.3.0',
     packages=['fieldsignals', 'fieldsignals.tests'],
     include_package_data=True,
     test_suite='fieldsignals.tests.test_signals',
@@ -29,7 +29,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Topic :: Internet :: WWW/HTTP',
