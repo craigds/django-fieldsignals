@@ -69,6 +69,15 @@ or from github:
     )
 ```
 
+3. Add some signals!
+
+# Where should my signals code live?
+
+Field signals must be connected after the django apps are ready.
+So putting signal connectors at the bottom of your models file, or other random places won't work.
+
+The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https://docs.djangoproject.com/en/1.11/ref/applications/#for-application-authors).
+
 # Notes
 
 * Currently no support for `ManyToManyField` or reverse side of `ForeignKey` (one to many).
