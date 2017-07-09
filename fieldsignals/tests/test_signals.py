@@ -1,3 +1,4 @@
+import datetime
 from contextlib import contextmanager
 from collections import namedtuple
 from unittest import main, TestCase
@@ -6,6 +7,8 @@ from django.apps import apps
 from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import OneToOneRel
 from django.db.models.signals import post_save, post_init, pre_save
+from django.utils.dateparse import parse_datetime
+from django.utils.timezone import utc
 
 from fieldsignals.signals import post_save_changed, pre_save_changed
 
@@ -47,11 +50,26 @@ class Field(object):
     def value_from_object(self, instance):
         return getattr(instance, self.name)
 
+    def to_python(self, value):
+        return value
+
+
+class DateTimeField(Field):
+    def to_python(self, value):
+        # approximate a datetime field
+        if value is None:
+            return value
+        if isinstance(value, datetime.datetime):
+            return value
+
+        return parse_datetime(value)
+
 
 class FakeModel(object):
     a_key = 'a value'
     another = 'something else'
     m2m = []
+    a_datetime = None
 
     class _meta(object):
         @staticmethod
@@ -60,6 +78,7 @@ class FakeModel(object):
                 Field('a_key'),
                 Field('another'),
                 Field('m2m', m2m=True),
+                DateTimeField('a_datetime')
             ]
 
 
@@ -106,6 +125,22 @@ class TestGeneral(TestCase):
         with self.assertRaisesRegexp(AppRegistryNotReady, r"django-fieldsignals signals.*"):
             post_save_changed.connect(func, sender=FakeModel)
 
+    def test_compare_after_to_python(self):
+        """
+        Field values (e.g. datetimes) are equal even if set via string.
+        Ensures that to_python() is called prior to comparison between old & new values.
+        """
+        with must_be_called(False) as func:
+            pre_save_changed.connect(func, sender=FakeModel, fields=('a_datetime',))
+
+            obj = FakeModel()
+            obj.a_datetime = '2017-01-01T00:00:00.000000Z'
+            post_init.send(instance=obj, sender=FakeModel)
+
+            # This is identical to the above, even though the type is different,
+            # so don't call the signal
+            obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, utc)
+            pre_save.send(instance=obj, sender=FakeModel)
 
 
 class TestPostSave(TestCase):

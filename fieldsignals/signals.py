@@ -118,14 +118,14 @@ class ChangedSignal(Signal):
         key = (id(self), id(receiver))
         if not hasattr(instance, '_fieldsignals_originals'):
             instance._fieldsignals_originals = {}
-        if not key in instance._fieldsignals_originals:
+        if key not in instance._fieldsignals_originals:
             instance._fieldsignals_originals[key] = {}
         originals = instance._fieldsignals_originals[key]
         changed_fields = {}
 
         for field in fields:
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
-            new_value = field.value_from_object(instance)
+            new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)
             if old_value != new_value:
                 changed_fields[field] = (old_value, new_value)
