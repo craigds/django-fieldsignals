@@ -11,7 +11,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='django-fieldsignals',
-    version='0.3.0',
+    version='0.3.1',
     packages=['fieldsignals', 'fieldsignals.tests'],
     include_package_data=True,
     test_suite='fieldsignals.tests.test_signals',
