@@ -125,7 +125,10 @@ class ChangedSignal(Signal):
 
         for field in fields:
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
-            new_value = field.to_python(field.value_from_object(instance))
+            if field.get_internal_type() == 'BooleanField':
+                new_value = field.to_python(bool(field.value_from_object(instance)))
+            else:
+                new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)
             if old_value != new_value:
                 changed_fields[field] = (old_value, new_value)
