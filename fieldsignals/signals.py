@@ -123,7 +123,11 @@ class ChangedSignal(Signal):
         originals = instance._fieldsignals_originals[key]
         changed_fields = {}
 
+        deferred_fields = instance.get_deferred_fields()
+
         for field in fields:
+            if field.attname in deferred_fields:
+                continue
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
             new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)

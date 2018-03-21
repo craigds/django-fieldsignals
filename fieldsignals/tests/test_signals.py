@@ -44,6 +44,7 @@ def func(*args, **kwargs):
 class Field(object):
     def __init__(self, name, m2m=False):
         self.name = name
+        self.attname = name
         self.many_to_many = m2m
         self.one_to_many = False
 
@@ -80,6 +81,24 @@ class FakeModel(object):
                 Field('m2m', m2m=True),
                 DateTimeField('a_datetime')
             ]
+
+    def get_deferred_fields(self):
+        return set()
+
+
+class DeferredModel(object):
+    a = 1
+
+    class _meta(object):
+        @staticmethod
+        def get_fields():
+            return [
+                Field('a'),
+                Field('b'),
+            ]
+
+    def get_deferred_fields(self):
+        return {'b'}
 
 
 class MockOneToOneRel(OneToOneRel):
@@ -141,6 +160,14 @@ class TestGeneral(TestCase):
             # so don't call the signal
             obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, utc)
             pre_save.send(instance=obj, sender=FakeModel)
+
+    def test_deferred_fields(self):
+        pre_save_changed.connect(func, sender=DeferredModel)
+
+        obj = DeferredModel()
+        post_init.send(instance=obj, sender=DeferredModel)
+
+        assert list(obj._fieldsignals_originals.values()) == [{'a': 1}]
 
 
 class TestPostSave(TestCase):
