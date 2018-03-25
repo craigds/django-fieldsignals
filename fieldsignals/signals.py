@@ -1,3 +1,7 @@
+from copy import deepcopy
+
+import six
+
 from django.apps import apps
 from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import ForeignObjectRel
@@ -6,6 +10,11 @@ from django.dispatch import Signal
 
 
 __all__ = ('pre_save_changed', 'post_save_changed')
+
+
+IMMUTABLE_TYPES_WHITELIST = tuple(
+    [tuple, frozenset, float] + list(six.string_types + six.integer_types)
+)
 
 
 class ChangedSignal(Signal):
@@ -132,9 +141,15 @@ class ChangedSignal(Signal):
             new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)
             if old_value != new_value:
+                if not isinstance(new_value, IMMUTABLE_TYPES_WHITELIST):
+                    # For mutable types, make a copy of the value before storing it.
+                    # Otherwise, the 'originals' dict may well get modified elsewhere, and
+                    # that's going to make change detection impossible
+                    new_value = deepcopy(new_value)
+
                 changed_fields[field] = (old_value, new_value)
-            # now update, for next time
-            originals[field.name] = new_value
+                # now update, for next time
+                originals[field.name] = new_value
         return changed_fields
 
 
