@@ -1,12 +1,11 @@
 from copy import deepcopy
 
-import six
-
 from django.apps import apps
 from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import ForeignObjectRel
 from django.db.models import signals as _signals
 from django.dispatch import Signal
+from django.utils import six
 
 
 __all__ = ('pre_save_changed', 'post_save_changed')
