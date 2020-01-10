@@ -1,7 +1,8 @@
 import datetime
 from contextlib import contextmanager
 from collections import namedtuple
-from unittest import main, TestCase
+
+import pytest
 
 from django.apps import apps
 from django.core.exceptions import AppRegistryNotReady
@@ -22,15 +23,12 @@ def must_be_called(must=True):
     def func(*args, **kwargs):
         x['called'] = True
 
-    try:
-        yield func
-    except:
-        raise
-    else:
-        if x['called'] and not must:
-            raise AssertionError("Function was called, shouldn't have been")
-        elif must and not x['called']:
-            raise AssertionError("Function wasn't called, should have been")
+    yield func
+
+    if x['called'] and not must:
+        raise AssertionError("Function was called, shouldn't have been")
+    elif must and not x['called']:
+        raise AssertionError("Function wasn't called, should have been")
 
 
 class Called(Exception):
@@ -79,7 +77,7 @@ class FakeModel(object):
                 Field('a_key'),
                 Field('another'),
                 Field('m2m', m2m=True),
-                DateTimeField('a_datetime')
+                DateTimeField('a_datetime'),
             ]
 
     def get_deferred_fields(self):
@@ -115,25 +113,25 @@ class FakeModelWithOneToOne(object):
     class _meta(object):
         @staticmethod
         def get_fields():
-            return [
-                Field('f'),
-                MockOneToOneRel('o2o')
-            ]
+            return [Field('f'), MockOneToOneRel('o2o')]
 
 
-class TestGeneral(TestCase):
-    def setUp(self):
+class TestGeneral(object):
+    @pytest.fixture(autouse=True)
+    def ready(self):
         apps.models_ready = True
 
     def test_m2m_fields_error(self):
         with must_be_called(False) as func:
-            with self.assertRaises(ValueError):
+            with pytest.raises(ValueError):
                 post_save_changed.connect(func, sender=FakeModel, fields=('m2m',))
 
     def test_one_to_one_rel_field_error(self):
         with must_be_called(False) as func:
-            with self.assertRaises(ValueError):
-                post_save_changed.connect(func, sender=FakeModelWithOneToOne, fields=('o2o', 'f'))
+            with pytest.raises(ValueError):
+                post_save_changed.connect(
+                    func, sender=FakeModelWithOneToOne, fields=('o2o', 'f')
+                )
 
     def test_one_to_one_rel_excluded(self):
         with must_be_called(False) as func:
@@ -141,7 +139,7 @@ class TestGeneral(TestCase):
 
     def test_app_cache_not_ready(self):
         apps.models_ready = False
-        with self.assertRaisesRegexp(AppRegistryNotReady, r"django-fieldsignals signals.*"):
+        with pytest.raises(AppRegistryNotReady):
             post_save_changed.connect(func, sender=FakeModel)
 
     def test_compare_after_to_python(self):
@@ -170,8 +168,9 @@ class TestGeneral(TestCase):
         assert list(obj._fieldsignals_originals.values()) == [{'a': 1}]
 
 
-class TestPostSave(TestCase):
-    def setUp(self):
+class TestPostSave(object):
+    @pytest.fixture(autouse=True)
+    def ready(self):
         apps.models_ready = True
 
     def test_post_save_unchanged(self):
@@ -214,8 +213,9 @@ class TestPostSave(TestCase):
             post_save.send(instance=obj, sender=FakeModel)
 
 
-class TestPreSave(TestCase):
-    def setUp(self):
+class TestPreSave(object):
+    @pytest.fixture(autouse=True)
+    def unready(self):
         apps.models_ready = True
 
     def test_pre_save_unchanged(self):
@@ -260,7 +260,3 @@ class TestPreSave(TestCase):
 
             obj.another = 'dont care about this field'
             pre_save.send(instance=obj, sender=FakeModel)
-
-
-if __name__ == '__main__':
-    main()
