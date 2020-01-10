@@ -17,6 +17,7 @@ setup(
     test_suite='fieldsignals.tests.test_signals',
     description='Django fieldsignals simply makes it easy to tell when the fields on your model have changed.',
     long_description=README,
+    long_description_content_type='text/markdown',
     url='https://github.com/craigds/django-fieldsignals',
     author='Craig de Stigter',
     author_email='craig.ds@gmail.com',
