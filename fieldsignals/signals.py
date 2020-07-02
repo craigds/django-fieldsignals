@@ -115,7 +115,7 @@ class ChangedSignal(Signal):
 
         Returns a dict like this:
             {
-                <field1> : ("old value", "new value"),
+                "fieldname1" : ("old value", "new value"),
             }
         """
         # instance._fieldsignals_originals looks like this:
@@ -145,7 +145,7 @@ class ChangedSignal(Signal):
                     # that's going to make change detection impossible
                     new_value = deepcopy(new_value)
 
-                changed_fields[field] = (old_value, new_value)
+                changed_fields[field.name] = (old_value, new_value)
                 # now update, for next time
                 originals[field.name] = new_value
         return changed_fields

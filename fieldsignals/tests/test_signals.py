@@ -22,6 +22,11 @@ def must_be_called(must=True):
 
     def func(*args, **kwargs):
         x['called'] = True
+        func.args = args
+        func.kwargs = kwargs
+
+    func.args = None
+    func.kwargs = None
 
     yield func
 
@@ -191,6 +196,7 @@ class TestPostSave(object):
 
             obj.a_key = 'another value'
             post_save.send(instance=obj, sender=FakeModel)
+        assert func.kwargs['changed_fields'] == {'a_key': ('a value', 'another value')}
 
     def test_post_save_with_fields_changed(self):
         with must_be_called(True) as func:
@@ -201,6 +207,9 @@ class TestPostSave(object):
 
             obj.a_key = 'change a field that we care about'
             post_save.send(instance=obj, sender=FakeModel)
+        assert func.kwargs['changed_fields'] == {
+            'a_key': ('a value', 'change a field that we care about')
+        }
 
     def test_post_save_with_fields_unchanged(self):
         with must_be_called(False) as func:
@@ -241,6 +250,8 @@ class TestPreSave(object):
             obj.a_key = 'another value'
             pre_save.send(instance=obj, sender=FakeModel)
 
+        assert func.kwargs['changed_fields'] == {'a_key': ('a value', 'another value')}
+
     def test_pre_save_with_fields_changed(self):
         with must_be_called(True) as func:
             pre_save_changed.connect(func, sender=FakeModel, fields=('a_key',))
@@ -250,6 +261,9 @@ class TestPreSave(object):
 
             obj.a_key = 'change a field that we care about'
             pre_save.send(instance=obj, sender=FakeModel)
+        assert func.kwargs['changed_fields'] == {
+            'a_key': ('a value', 'change a field that we care about')
+        }
 
     def test_pre_save_with_fields_unchanged(self):
         with must_be_called(False) as func:
