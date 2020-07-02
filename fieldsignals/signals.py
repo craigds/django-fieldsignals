@@ -7,12 +7,10 @@ from django.db.models import signals as _signals
 from django.dispatch import Signal
 
 
-__all__ = ('pre_save_changed', 'post_save_changed')
+__all__ = ("pre_save_changed", "post_save_changed")
 
 
-IMMUTABLE_TYPES_WHITELIST = tuple(
-    [tuple, frozenset, float, str, int]
-)
+IMMUTABLE_TYPES_WHITELIST = tuple([tuple, frozenset, float, str, int])
 
 
 class ChangedSignal(Signal):
@@ -38,7 +36,7 @@ class ChangedSignal(Signal):
 
         # Validate arguments
 
-        if kwargs.get('weak', False):
+        if kwargs.get("weak", False):
             # TODO: weak refs? I'm hella confused.
             # We can't go passing our proxy receivers around as weak refs, since they're
             # defined as closures and hence don't exist by the time they're called.
@@ -62,8 +60,7 @@ class ChangedSignal(Signal):
                 if is_reverse_rel(f):
                     raise ValueError(
                         "django-fieldsignals doesn't handle reverse related fields "
-                        "({f.name} is a {f.__class__.__name__})"
-                        .format(f=f)
+                        "({f.name} is a {f.__class__.__name__})".format(f=f)
                     )
 
         if not fields:
@@ -71,12 +68,17 @@ class ChangedSignal(Signal):
 
         proxy_receiver = self._make_proxy_receiver(receiver, sender, fields)
 
-        super(ChangedSignal, self).connect(proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid)
+        super(ChangedSignal, self).connect(
+            proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid
+        )
 
         ### post_init : initialize the list of fields for each instance
         def post_init_closure(sender, instance, **kwargs):
             self.get_and_update_changed_fields(receiver, instance, fields)
-        _signals.post_init.connect(post_init_closure, sender=sender, weak=False, dispatch_uid=(self, receiver))
+
+        _signals.post_init.connect(
+            post_init_closure, sender=sender, weak=False, dispatch_uid=(self, receiver)
+        )
         self.connect_source_signals(sender)
 
     def connect_source_signals(self, sender):
@@ -95,10 +97,15 @@ class ChangedSignal(Signal):
         to watch. The original receiver is called for an instance iff the value of
         at least one of the fields has changed since the last time it was called.
         """
+
         def pr(instance, *args, **kwargs):
-            changed_fields = self.get_and_update_changed_fields(receiver, instance, fields)
+            changed_fields = self.get_and_update_changed_fields(
+                receiver, instance, fields
+            )
             if changed_fields:
-                receiver(instance=instance, changed_fields=changed_fields, *args, **kwargs)
+                receiver(
+                    instance=instance, changed_fields=changed_fields, *args, **kwargs
+                )
 
         pr._original_receiver = receiver
         pr._fields = fields
@@ -123,7 +130,7 @@ class ChangedSignal(Signal):
         #       (id(<signal instance>), id(<receiver>)) : {"field_name": "old value",},
         #   }
         key = (id(self), id(receiver))
-        if not hasattr(instance, '_fieldsignals_originals'):
+        if not hasattr(instance, "_fieldsignals_originals"):
             instance._fieldsignals_originals = {}
         if key not in instance._fieldsignals_originals:
             instance._fieldsignals_originals[key] = {}
@@ -156,20 +163,28 @@ class PreSaveChangedSignal(ChangedSignal):
         return self.send(sender, instance=instance)
 
     def connect_source_signals(self, sender):
-        _signals.pre_save.connect(self._on_model_pre_save, sender=sender, dispatch_uid=id(self))
+        _signals.pre_save.connect(
+            self._on_model_pre_save, sender=sender, dispatch_uid=id(self)
+        )
 
 
 class PostSaveChangedSignal(ChangedSignal):
-    def _on_model_post_save(self, sender, instance=None, created=None, using=None, **kwargs):
+    def _on_model_post_save(
+        self, sender, instance=None, created=None, using=None, **kwargs
+    ):
         return self.send(sender, instance=instance, created=created, using=using)
 
     def connect_source_signals(self, sender):
-        _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
+        _signals.post_save.connect(
+            self._on_model_post_save, sender=sender, dispatch_uid=id(self)
+        )
 
 
 ### API:
 
 pre_save_changed = PreSaveChangedSignal(providing_args=["instance", "changed_fields"])
-post_save_changed = PostSaveChangedSignal(providing_args=["instance", "changed_fields", "created", "using"])
+post_save_changed = PostSaveChangedSignal(
+    providing_args=["instance", "changed_fields", "created", "using"]
+)
 
-#TODO other signals?
+# TODO other signals?
