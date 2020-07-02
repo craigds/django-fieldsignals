@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 *.pyo
 .tox
+.python-version
