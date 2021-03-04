@@ -41,7 +41,7 @@ new values of your fields:
 
     def print_all_field_changes(sender, instance, changed_fields=None, **kwargs):
         for field, (old, new) in changed_fields.items():
-            print "%s changed from %s to %s" % (field.name, old, new)
+            print(f'{field.name} changed from {old} to {new}')
 
     pre_save_changed.connect(print_all_field_changes, sender=Poll)
 ```
