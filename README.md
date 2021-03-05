@@ -39,7 +39,7 @@ new values of your fields:
 ```python
     from fieldsignals import pre_save_changed
 
-    def print_all_field_changes(sender, instance, changed_fields=None, **kwargs):
+    def print_all_field_changes(sender, instance, changed_fields, **kwargs):
         for field, (old, new) in changed_fields.items():
             print(f'{field.name} changed from {old} to {new}')
 
