@@ -182,9 +182,7 @@ class PostSaveChangedSignal(ChangedSignal):
 
 ### API:
 
-pre_save_changed = PreSaveChangedSignal(providing_args=["instance", "changed_fields"])
-post_save_changed = PostSaveChangedSignal(
-    providing_args=["instance", "changed_fields", "created", "using"]
-)
+pre_save_changed = PreSaveChangedSignal()
+post_save_changed = PostSaveChangedSignal()
 
 # TODO other signals?
