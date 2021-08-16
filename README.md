@@ -76,7 +76,7 @@ or from github:
 Field signals must be connected after the django apps are ready.
 So putting signal connectors at the bottom of your models file, or other random places won't work.
 
-The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https://docs.djangoproject.com/en/1.11/ref/applications/#for-application-authors).
+The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https://docs.djangoproject.com/en/3.2/ref/applications/#for-application-authors).
 
 # Notes
 
