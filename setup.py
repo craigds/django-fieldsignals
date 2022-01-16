@@ -34,5 +34,6 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+        "License :: OSI Approved :: MIT License",
     ],
 )
