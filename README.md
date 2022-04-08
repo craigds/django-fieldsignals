@@ -40,8 +40,8 @@ new values of your fields:
     from fieldsignals import pre_save_changed
 
     def print_all_field_changes(sender, instance, changed_fields, **kwargs):
-        for field, (old, new) in changed_fields.items():
-            print(f'{field.name} changed from {old} to {new}')
+        for field_name, (old, new) in changed_fields.items():
+            print(f'{field_name} changed from {old} to {new}')
 
     pre_save_changed.connect(print_all_field_changes, sender=Poll)
 ```
@@ -52,12 +52,6 @@ new values of your fields:
 
 ```bash
     pip install django-fieldsignals
-```
-
-or from github:
-
-```bash
-    pip install 'git+https://github.com/craigds/django-fieldsignals.git#egg=django-fieldsignals'
 ```
 
 2. Add `"fieldsignals"` to your `INSTALLED_APPS` setting like this:
@@ -76,7 +70,7 @@ or from github:
 Field signals must be connected after the django apps are ready.
 So putting signal connectors at the bottom of your models file, or other random places won't work.
 
-The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https://docs.djangoproject.com/en/3.2/ref/applications/#for-application-authors).
+The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https://docs.djangoproject.com/en/dev/ref/applications/#for-application-authors).
 
 # Notes
 
