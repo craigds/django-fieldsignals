@@ -19,11 +19,22 @@ class ChangedSignal(Signal):
     The given receiver is only called when one or more of the given fields has changed.
     """
 
-    def connect(self, receiver, sender=None, fields=None, dispatch_uid=None, **kwargs):
+    def connect(
+        self,
+        receiver,
+        sender=None,
+        fields=None,
+        dispatch_uid=None,
+        trigger_during_create=False,
+        **kwargs,
+    ):
         """
         Connect a FieldSignal. Usage::
 
             foo.connect(func, sender=MyModel, fields=['myfield1', 'myfield2'])
+
+        If trigger_during_create=True is given, the signal will be triggered also during calls
+        to Manager.create() (and all registered fields will be marked as changed)
         """
 
         if not apps.models_ready:
@@ -66,7 +77,9 @@ class ChangedSignal(Signal):
         if not fields:
             raise ValueError("fields must be non-empty")
 
-        proxy_receiver = self._make_proxy_receiver(receiver, sender, fields)
+        proxy_receiver = self._make_proxy_receiver(
+            receiver, sender, fields, trigger_during_create
+        )
 
         super(ChangedSignal, self).connect(
             proxy_receiver, sender=sender, weak=False, dispatch_uid=dispatch_uid
@@ -91,20 +104,28 @@ class ChangedSignal(Signal):
         # override in subclasses
         pass
 
-    def _make_proxy_receiver(self, receiver, sender, fields):
+    def _make_proxy_receiver(self, receiver, sender, fields, trigger_during_create):
         """
         Takes a receiver function and creates a closure around it that knows what fields
         to watch. The original receiver is called for an instance iff the value of
         at least one of the fields has changed since the last time it was called.
         """
 
-        def pr(instance, *args, **kwargs):
+        def pr(instance, *args, created=False, **kwargs):
             changed_fields = self.get_and_update_changed_fields(
-                receiver, instance, fields
+                receiver,
+                instance,
+                fields,
+                trigger_during_create=(created and trigger_during_create),
             )
-            if changed_fields:
+
+            if changed_fields or (created and trigger_during_create):
                 receiver(
-                    instance=instance, changed_fields=changed_fields, *args, **kwargs
+                    instance=instance,
+                    changed_fields=changed_fields,
+                    *args,
+                    created=created,
+                    **kwargs,
                 )
 
         pr._original_receiver = receiver
@@ -114,7 +135,9 @@ class ChangedSignal(Signal):
         pr.__name__ = receiver.__name__
         return pr
 
-    def get_and_update_changed_fields(self, receiver, instance, fields):
+    def get_and_update_changed_fields(
+        self, receiver, instance, fields, *, trigger_during_create=False
+    ):
         """
         Takes a receiver and a model instance, and a list of field instances.
         Gets the old and new values for each of the given fields, and stores their
@@ -145,7 +168,13 @@ class ChangedSignal(Signal):
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
             new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)
-            if old_value != new_value:
+            # If someone calls MyModel.objects.create(abc=1),
+            # then MyModel(abc=1) is called immediately before post_save.
+            # In that case, no fields have 'changed', and this signal is not normally called.
+            # However if trigger_during_create is True, we want to call the signal anyway,
+            # and the only sensible value for changed_fields is the full list of registered fields,
+            # even though they technically haven't changed since the instance was initialised.
+            if trigger_during_create or old_value != new_value:
                 if not isinstance(new_value, IMMUTABLE_TYPES_WHITELIST):
                     # For mutable types, make a copy of the value before storing it.
                     # Otherwise, the 'originals' dict may well get modified elsewhere, and
