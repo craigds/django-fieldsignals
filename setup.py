@@ -20,7 +20,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/craigds/django-fieldsignals",
     author="Craig de Stigter",
-    author_email="craig.ds@gmail.com",
+    author_email="craig@destigter.nz",
     classifiers=[
         "Environment :: Web Environment",
         "Framework :: Django",
