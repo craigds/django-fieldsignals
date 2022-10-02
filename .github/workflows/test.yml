@@ -1,4 +1,4 @@
-name: Run django-fieldsignals tests
+name: tests
 
 on:
   - push

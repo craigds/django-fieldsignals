@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/craigds/django-fieldsignals/actions/workflows/test/badge.svg?branch=master)](https://github.com/craigds/django-fieldsignals/actions)
+[![Build Status](https://github.com/craigds/django-fieldsignals/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/craigds/django-fieldsignals/actions)
 
 # Introduction
 
