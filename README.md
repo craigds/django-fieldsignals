@@ -9,14 +9,14 @@ are very rare. This makes it tempting to put the update logic in a view,
 rather than in a save() method or in a signal receiver:
 
 ```python
-    # A bad example. Don't do this!
-    def edit_poll(request, poll_id):
+# A bad example. Don't do this!
+def edit_poll(request, poll_id):
 
-        # ...
+    # ...
 
-        if form.cleaned_data['poll_name'] != poll.name:
-            poll.update_slug(form.cleaned_data['poll_name'])
-        poll.save()
+    if form.cleaned_data['poll_name'] != poll.name:
+        poll.update_slug(form.cleaned_data['poll_name'])
+    poll.save()
 ```
 
 That's a bad idea, because your model consistency is now dependent on your view.
@@ -24,12 +24,12 @@ That's a bad idea, because your model consistency is now dependent on your view.
 Instead, use django-fieldsignals:
 
 ```python
-    from fieldsignals import pre_save_changed
+from django.dispatch import receiver
+from fieldsignals import pre_save_changed
 
-    def update_poll_slug(sender, instance, **kwargs):
-        instance.slug = slugify(instance.name)
-
-    pre_save_changed.connect(update_poll_slug, sender=Poll, fields=['name'])
+@receiver(pre_save_changed, sender=Poll, fields=['name'])
+def update_poll_slug(sender, instance, **kwargs):
+    instance.slug = slugify(instance.name)
 ```
 
 
@@ -37,13 +37,10 @@ In case you want to know what changed, django-fieldsignals even tells you the ol
 new values of your fields:
 
 ```python
-    from fieldsignals import pre_save_changed
-
-    def print_all_field_changes(sender, instance, changed_fields, **kwargs):
-        for field_name, (old, new) in changed_fields.items():
-            print(f'{field_name} changed from {old} to {new}')
-
-    pre_save_changed.connect(print_all_field_changes, sender=Poll)
+@receiver(pre_save_changed, sender=Poll)
+def print_all_field_changes(sender, instance, changed_fields, **kwargs):
+    for field_name, (old, new) in changed_fields.items():
+        print(f'{field_name} changed from {old} to {new}')
 ```
 
 # Installation
@@ -57,10 +54,10 @@ new values of your fields:
 2. Add `"fieldsignals"` to your `INSTALLED_APPS` setting like this:
 
 ```python
-    INSTALLED_APPS = (
-        ...
-        'fieldsignals',
-    )
+INSTALLED_APPS = (
+    ...
+    'fieldsignals',
+)
 ```
 
 3. Add some signals!
@@ -74,4 +71,30 @@ The best place to connect fieldsignals is an [`AppConfig.ready()` handler](https
 
 # Notes
 
-* Currently no support for `ManyToManyField` or reverse side of `ForeignKey` (one to many).
+1. fieldsignals signals do not trigger if your fields don't change between instantiation and `save()`. That is:
+
+```python
+# This will NOT trigger post_save_changed
+instance = MyModel.objects.create(field1='x')
+
+# This will also NOT trigger post_save_changed
+instance = MyModel(field1='x')
+instance.save()
+
+# But this WILL trigger post_save_changed
+instance = MyModel()
+instance.field1 = 'x'
+instance.save()
+```
+
+If you want to also trigger your signals during creation, register your handler as a regular signal also, and check the `created` kwarg:
+
+```python
+@receiver(pre_save, sender=Poll)
+@receiver(pre_save_changed, sender=Poll, fields=['name'])
+def update_poll_slug(sender, instance, *, created, changed_fields=None, **kwargs):
+    if created or changed_fields:
+        instance.slug = slugify(instance.name)
+```
+
+2. Currently no support for `ManyToManyField` or reverse side of `ForeignKey` (one to many).
