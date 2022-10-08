@@ -143,7 +143,10 @@ class ChangedSignal(Signal):
             if field.attname in deferred_fields:
                 continue
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
-            new_value = field.to_python(field.value_from_object(instance))
+            if field.get_internal_type() == 'BooleanField':
+                new_value = field.to_python(bool(field.value_from_object(instance)))
+            else:
+                new_value = field.to_python(field.value_from_object(instance))
             old_value = originals.get(field.name, None)
             if old_value != new_value:
                 if not isinstance(new_value, IMMUTABLE_TYPES_WHITELIST):
