@@ -1,3 +1,6 @@
-from .signals import pre_save_changed, post_save_changed  # noqa
+from __future__ import annotations
 
-__version__ = (0, 6, 0)
+from .signals import post_save_changed, pre_save_changed
+
+__all__ = ["post_save_changed", "pre_save_changed"]
+__version__ = "0.8.0"
