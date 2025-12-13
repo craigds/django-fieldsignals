@@ -48,3 +48,11 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["fieldsignals/tests"]
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+strict = true
+exclude = ["fieldsignals/tests/"]
+
+[tool.django-stubs]
+django_settings_module = "fieldsignals.tests.settings"

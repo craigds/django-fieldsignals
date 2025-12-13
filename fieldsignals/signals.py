@@ -10,7 +10,7 @@ from django.db.models.fields.related import ForeignObjectRel
 from django.dispatch import Signal
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Hashable
 
     from django.db import models
 
@@ -26,12 +26,12 @@ class ChangedSignal(Signal):
     The given receiver is only called when one or more of the given fields has changed.
     """
 
-    def connect(
+    def connect(  # type: ignore[override]
         self,
         receiver: Callable[..., Any],
         sender: type[models.Model] | None = None,
         fields: list[str] | None = None,
-        dispatch_uid: str | None = None,
+        dispatch_uid: Hashable | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -89,7 +89,10 @@ class ChangedSignal(Signal):
             self.get_and_update_changed_fields(receiver, instance, resolved_fields)
 
         _signals.post_init.connect(
-            post_init_closure, sender=sender, weak=False, dispatch_uid=(self, receiver)
+            post_init_closure,
+            sender=sender,
+            weak=False,
+            dispatch_uid=(self, receiver),  # type: ignore[arg-type]
         )
         self.connect_source_signals(sender)
 
@@ -119,7 +122,10 @@ class ChangedSignal(Signal):
             changed_fields = self.get_and_update_changed_fields(receiver, instance, fields)
             if changed_fields:
                 receiver(
-                    instance=instance, changed_fields=changed_fields, *args, **kwargs  # noqa: B026
+                    instance=instance,
+                    changed_fields=changed_fields,
+                    *args,
+                    **kwargs,  # noqa: B026
                 )
 
         pr._original_receiver = receiver  # type: ignore[attr-defined]
@@ -185,7 +191,11 @@ class PreSaveChangedSignal(ChangedSignal):
         return self.send(sender, instance=instance)
 
     def connect_source_signals(self, sender: type) -> None:
-        _signals.pre_save.connect(self._on_model_pre_save, sender=sender, dispatch_uid=id(self))
+        _signals.pre_save.connect(
+            self._on_model_pre_save,
+            sender=sender,
+            dispatch_uid=id(self),  # type: ignore[arg-type]
+        )
 
 
 class PostSaveChangedSignal(ChangedSignal):
@@ -200,7 +210,11 @@ class PostSaveChangedSignal(ChangedSignal):
         return self.send(sender, instance=instance, created=created, using=using)
 
     def connect_source_signals(self, sender: type) -> None:
-        _signals.post_save.connect(self._on_model_post_save, sender=sender, dispatch_uid=id(self))
+        _signals.post_save.connect(
+            self._on_model_post_save,
+            sender=sender,
+            dispatch_uid=id(self),  # type: ignore[arg-type]
+        )
 
 
 ### API:

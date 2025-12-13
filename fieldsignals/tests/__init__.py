@@ -1,2 +1,1 @@
-# ruff: noqa: F403, F401
-from .test_signals import *
+# Tests are discovered by pytest, no need to export here
