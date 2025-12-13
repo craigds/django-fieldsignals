@@ -12,7 +12,6 @@ from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import OneToOneRel
 from django.db.models.signals import post_init, post_save, pre_save
 from django.utils.dateparse import parse_datetime
-from django.utils.timezone import utc
 
 from fieldsignals.signals import post_save_changed, pre_save_changed
 
@@ -159,7 +158,7 @@ class TestGeneral:
             obj.a_datetime = "2017-01-01T00:00:00.000000Z"  # type: ignore[assignment]
             post_init.send(instance=obj, sender=FakeModel)
 
-            obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, utc)
+            obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, datetime.timezone.utc)
             pre_save.send(instance=obj, sender=FakeModel)
 
     def test_deferred_fields(self) -> None:
