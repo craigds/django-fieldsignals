@@ -7,3 +7,7 @@ __pycache__/
 .tox
 .python-version
 .vscode/
+.ruff_cache/
+uv.lock
+
+.claude/settings.local.json

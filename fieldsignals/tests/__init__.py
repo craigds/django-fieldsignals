@@ -1,2 +1,1 @@
-import os
-from .test_signals import *
+# Tests are discovered by pytest, no need to export here

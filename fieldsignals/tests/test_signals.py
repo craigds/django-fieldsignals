@@ -1,15 +1,17 @@
+from __future__ import annotations
+
 import datetime
-from contextlib import contextmanager
 from collections import namedtuple
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import Any
 
 import pytest
-
 from django.apps import apps
 from django.core.exceptions import AppRegistryNotReady
 from django.db.models.fields.related import OneToOneRel
-from django.db.models.signals import post_save, post_init, pre_save
+from django.db.models.signals import post_init, post_save, pre_save
 from django.utils.dateparse import parse_datetime
-from django.utils.timezone import utc
 
 from fieldsignals.signals import post_save_changed, pre_save_changed
 
@@ -17,16 +19,16 @@ _field = namedtuple("field", ["name"])
 
 
 @contextmanager
-def must_be_called(must=True):
+def must_be_called(must: bool = True) -> Generator[Any, None, None]:
     x = {"called": False}
 
-    def func(*args, **kwargs):
+    def func(*args: Any, **kwargs: Any) -> None:
         x["called"] = True
-        func.args = args
-        func.kwargs = kwargs
+        func.args = args  # type: ignore[attr-defined]
+        func.kwargs = kwargs  # type: ignore[attr-defined]
 
-    func.args = None
-    func.kwargs = None
+    func.args = None  # type: ignore[attr-defined]
+    func.kwargs = None  # type: ignore[attr-defined]
 
     yield func
 
@@ -40,44 +42,42 @@ class Called(Exception):
     pass
 
 
-def func(*args, **kwargs):
+def func(*args: Any, **kwargs: Any) -> None:
     raise Called
 
 
-class Field(object):
-    def __init__(self, name, m2m=False):
+class Field:
+    def __init__(self, name: str, m2m: bool = False) -> None:
         self.name = name
         self.attname = name
         self.many_to_many = m2m
         self.one_to_many = False
 
-    def value_from_object(self, instance):
+    def value_from_object(self, instance: Any) -> Any:
         return getattr(instance, self.name)
 
-    def to_python(self, value):
+    def to_python(self, value: Any) -> Any:
         return value
 
 
 class DateTimeField(Field):
-    def to_python(self, value):
-        # approximate a datetime field
+    def to_python(self, value: Any) -> datetime.datetime | None:
         if value is None:
             return value
         if isinstance(value, datetime.datetime):
             return value
-
         return parse_datetime(value)
 
 
-class FakeModel(object):
+class FakeModel:
     a_key = "a value"
     another = "something else"
-    m2m = []
-    a_datetime = None
+    m2m: list[Any] = []
+    a_datetime: datetime.datetime | None = None
 
-    class _meta(object):
+    class _meta:
         @staticmethod
-        def get_fields():
+        def get_fields() -> list[Field]:
             return [
                 Field("a_key"),
                 Field("another"),
@@ -85,86 +85,83 @@ class FakeModel(object):
                 DateTimeField("a_datetime"),
             ]
 
-    def get_deferred_fields(self):
+    def get_deferred_fields(self) -> set[str]:
         return set()
 
 
-class DeferredModel(object):
+class DeferredModel:
     a = 1
 
-    class _meta(object):
+    class _meta:
         @staticmethod
-        def get_fields():
+        def get_fields() -> list[Field]:
             return [
                 Field("a"),
                 Field("b"),
             ]
 
-    def get_deferred_fields(self):
+    def get_deferred_fields(self) -> set[str]:
         return {"b"}
 
 
 class MockOneToOneRel(OneToOneRel):
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
         self.many_to_many = False
         self.one_to_many = False
 
 
-class FakeModelWithOneToOne(object):
+class FakeModelWithOneToOne:
     f = "a value"
     o2o = 1
 
-    class _meta(object):
+    class _meta:
         @staticmethod
-        def get_fields():
+        def get_fields() -> list[Field | MockOneToOneRel]:
             return [Field("f"), MockOneToOneRel("o2o")]
 
 
-class TestGeneral(object):
+class TestGeneral:
     @pytest.fixture(autouse=True)
-    def ready(self):
+    def ready(self) -> None:
         apps.models_ready = True
 
-    def test_m2m_fields_error(self):
+    def test_m2m_fields_error(self) -> None:
         with must_be_called(False) as func:
             with pytest.raises(ValueError):
-                post_save_changed.connect(func, sender=FakeModel, fields=("m2m",))
+                post_save_changed.connect(func, sender=FakeModel, fields=["m2m"])
 
-    def test_one_to_one_rel_field_error(self):
+    def test_one_to_one_rel_field_error(self) -> None:
         with must_be_called(False) as func:
             with pytest.raises(ValueError):
                 post_save_changed.connect(
-                    func, sender=FakeModelWithOneToOne, fields=("o2o", "f")
+                    func, sender=FakeModelWithOneToOne, fields=["o2o", "f"]
                 )
 
-    def test_one_to_one_rel_excluded(self):
+    def test_one_to_one_rel_excluded(self) -> None:
         with must_be_called(False) as func:
             post_save_changed.connect(func, sender=FakeModelWithOneToOne)
 
-    def test_app_cache_not_ready(self):
+    def test_app_cache_not_ready(self) -> None:
         apps.models_ready = False
         with pytest.raises(AppRegistryNotReady):
             post_save_changed.connect(func, sender=FakeModel)
 
-    def test_compare_after_to_python(self):
+    def test_compare_after_to_python(self) -> None:
         """
         Field values (e.g. datetimes) are equal even if set via string.
-        Ensures that to_python() is called prior to comparison between old & new values.
         """
         with must_be_called(False) as func:
-            pre_save_changed.connect(func, sender=FakeModel, fields=("a_datetime",))
+            pre_save_changed.connect(func, sender=FakeModel, fields=["a_datetime"])
 
             obj = FakeModel()
-            obj.a_datetime = "2017-01-01T00:00:00.000000Z"
+            obj.a_datetime = "2017-01-01T00:00:00.000000Z"  # type: ignore[assignment]
             post_init.send(instance=obj, sender=FakeModel)
 
-            # This is identical to the above, even though the type is different,
-            # so don't call the signal
-            obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, utc)
+            obj.a_datetime = datetime.datetime(2017, 1, 1, 0, 0, 0, 0, datetime.timezone.utc)
             pre_save.send(instance=obj, sender=FakeModel)
 
-    def test_deferred_fields(self):
+    def test_deferred_fields(self) -> None:
         pre_save_changed.connect(func, sender=DeferredModel)
 
         obj = DeferredModel()
@@ -173,21 +170,20 @@ class TestGeneral(object):
         assert list(obj._fieldsignals_originals.values()) == [{"a": 1}]
 
 
-class TestPostSave(object):
+class TestPostSave:
     @pytest.fixture(autouse=True)
-    def ready(self):
+    def ready(self) -> None:
         apps.models_ready = True
 
-    def test_post_save_unchanged(self):
+    def test_post_save_unchanged(self) -> None:
         with must_be_called(False) as func:
             post_save_changed.connect(func, sender=FakeModel)
 
             obj = FakeModel()
             post_init.send(instance=obj, sender=FakeModel)
-            # This *doesn't* call post_save_changed, because we haven't changed anything.
             post_save.send(instance=obj, sender=FakeModel)
 
-    def test_post_save_changed(self):
+    def test_post_save_changed(self) -> None:
         with must_be_called(True) as func:
             post_save_changed.connect(func, sender=FakeModel)
 
@@ -198,9 +194,9 @@ class TestPostSave(object):
             post_save.send(instance=obj, sender=FakeModel)
         assert func.kwargs["changed_fields"] == {"a_key": ("a value", "another value")}
 
-    def test_post_save_with_fields_changed(self):
+    def test_post_save_with_fields_changed(self) -> None:
         with must_be_called(True) as func:
-            post_save_changed.connect(func, sender=FakeModel, fields=("a_key",))
+            post_save_changed.connect(func, sender=FakeModel, fields=["a_key"])
 
             obj = FakeModel()
             post_init.send(instance=obj, sender=FakeModel)
@@ -211,9 +207,9 @@ class TestPostSave(object):
             "a_key": ("a value", "change a field that we care about")
         }
 
-    def test_post_save_with_fields_unchanged(self):
+    def test_post_save_with_fields_unchanged(self) -> None:
         with must_be_called(False) as func:
-            post_save_changed.connect(func, sender=FakeModel, fields=("a_key",))
+            post_save_changed.connect(func, sender=FakeModel, fields=["a_key"])
 
             obj = FakeModel()
             post_init.send(instance=obj, sender=FakeModel)
@@ -222,29 +218,24 @@ class TestPostSave(object):
             post_save.send(instance=obj, sender=FakeModel)
 
 
-class TestPreSave(object):
+class TestPreSave:
     @pytest.fixture(autouse=True)
-    def unready(self):
+    def unready(self) -> None:
         apps.models_ready = True
 
-    def test_pre_save_unchanged(self):
+    def test_pre_save_unchanged(self) -> None:
         with must_be_called(False) as func:
             pre_save_changed.connect(func, sender=FakeModel)
 
             obj = FakeModel()
-
-            # post_init sets list of initial values
             post_init.send(instance=obj, sender=FakeModel)
-            # This *doesn't* call pre_save_changed, because we haven't changed anything.
             pre_save.send(instance=obj, sender=FakeModel)
 
-    def test_pre_save_changed(self):
+    def test_pre_save_changed(self) -> None:
         with must_be_called(True) as func:
             pre_save_changed.connect(func, sender=FakeModel)
 
             obj = FakeModel()
-
-            # post_init sets list of initial values
             post_init.send(instance=obj, sender=FakeModel)
 
             obj.a_key = "another value"
@@ -252,9 +243,9 @@ class TestPreSave(object):
 
         assert func.kwargs["changed_fields"] == {"a_key": ("a value", "another value")}
 
-    def test_pre_save_with_fields_changed(self):
+    def test_pre_save_with_fields_changed(self) -> None:
         with must_be_called(True) as func:
-            pre_save_changed.connect(func, sender=FakeModel, fields=("a_key",))
+            pre_save_changed.connect(func, sender=FakeModel, fields=["a_key"])
 
             obj = FakeModel()
             post_init.send(instance=obj, sender=FakeModel)
@@ -265,9 +256,9 @@ class TestPreSave(object):
             "a_key": ("a value", "change a field that we care about")
         }
 
-    def test_pre_save_with_fields_unchanged(self):
+    def test_pre_save_with_fields_unchanged(self) -> None:
         with must_be_called(False) as func:
-            pre_save_changed.connect(func, sender=FakeModel, fields=("a_key",))
+            pre_save_changed.connect(func, sender=FakeModel, fields=["a_key"])
 
             obj = FakeModel()
             post_init.send(instance=obj, sender=FakeModel)
