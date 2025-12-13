@@ -7,3 +7,5 @@ __pycache__/
 .tox
 .python-version
 .vscode/
+
+.claude/settings.local.json
