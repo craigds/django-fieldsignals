@@ -18,11 +18,11 @@ tox
 # Run a single test
 pytest -v fieldsignals/tests/test_signals.py::TestPreSave::test_pre_save_changed
 
-# Format code
-black .
-
 # Lint
-flake8
+ruff check .
+
+# Type check
+tox -e mypy
 ```
 
 ## Architecture

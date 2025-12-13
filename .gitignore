@@ -8,5 +8,6 @@ __pycache__/
 .python-version
 .vscode/
 .ruff_cache/
+uv.lock
 
 .claude/settings.local.json
