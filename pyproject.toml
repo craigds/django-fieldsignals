@@ -1,2 +1,50 @@
-[tool.black]
-target-version = ['py36']
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-fieldsignals"
+version = "0.8.0"
+description = "Django signals that fire when specific model fields change"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Craig de Stigter", email = "craig@destigter.nz"}]
+requires-python = ">=3.8"
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
+]
+dependencies = ["django>=4.2"]
+
+[project.urls]
+Homepage = "https://github.com/craigds/django-fieldsignals"
+Repository = "https://github.com/craigds/django-fieldsignals"
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "tox", "tox-uv"]
+
+[tool.setuptools.packages.find]
+include = ["fieldsignals*"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["fieldsignals/tests"]
