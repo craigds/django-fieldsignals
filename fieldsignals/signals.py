@@ -122,10 +122,10 @@ class ChangedSignal(Signal):
             changed_fields = self.get_and_update_changed_fields(receiver, instance, fields)
             if changed_fields:
                 receiver(
+                    *args,
                     instance=instance,
                     changed_fields=changed_fields,
-                    *args,
-                    **kwargs,  # noqa: B026
+                    **kwargs,
                 )
 
         pr._original_receiver = receiver  # type: ignore[attr-defined]
