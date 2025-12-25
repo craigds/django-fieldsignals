@@ -65,15 +65,28 @@ class ChangedSignal(Signal):
         def is_reverse_rel(f: Any) -> bool:
             return f.many_to_many or f.one_to_many or isinstance(f, ForeignObjectRel)
 
+        def is_virtual_field(f: Any) -> bool:
+            """Virtual fields like GenericForeignKey don't have database columns."""
+            return not f.concrete
+
         if fields is None:
             resolved_fields = sender._meta.get_fields()
-            resolved_fields = [f for f in resolved_fields if not is_reverse_rel(f)]
+            resolved_fields = [
+                f
+                for f in resolved_fields
+                if not is_reverse_rel(f) and not is_virtual_field(f)
+            ]
         else:
             resolved_fields = [f for f in sender._meta.get_fields() if f.name in set(fields)]
             for f in resolved_fields:
                 if is_reverse_rel(f):
                     raise ValueError(
                         "django-fieldsignals doesn't handle reverse related fields "
+                        f"({f.name} is a {f.__class__.__name__})"
+                    )
+                if is_virtual_field(f):
+                    raise ValueError(
+                        "django-fieldsignals doesn't handle virtual fields "
                         f"({f.name} is a {f.__class__.__name__})"
                     )
 
@@ -166,6 +179,9 @@ class ChangedSignal(Signal):
         deferred_fields = instance.get_deferred_fields()
 
         for field in fields:
+            if not field.concrete:
+                # Skip virtual fields (e.g. GenericForeignKey)
+                continue
             if field.attname in deferred_fields:
                 continue
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
