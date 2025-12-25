@@ -4,7 +4,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from django.apps import apps
-from django.core.exceptions import AppRegistryNotReady
+from django.core.exceptions import AppRegistryNotReady, ValidationError
 from django.db.models import signals as _signals
 from django.db.models.fields.related import ForeignObjectRel
 from django.dispatch import Signal
@@ -169,7 +169,11 @@ class ChangedSignal(Signal):
             if field.attname in deferred_fields:
                 continue
             # using value_from_object instead of getattr() means we don't traverse foreignkeys
-            new_value = field.to_python(field.value_from_object(instance))
+            try:
+                new_value = field.to_python(field.value_from_object(instance))
+            except ValidationError:
+                # Skip fields with invalid values (e.g., BooleanField with None)
+                continue
             old_value = originals.get(field.name, None)
             if old_value != new_value:
                 if not isinstance(new_value, IMMUTABLE_TYPES_WHITELIST):

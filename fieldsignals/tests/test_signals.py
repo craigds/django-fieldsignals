@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from django.apps import apps
-from django.core.exceptions import AppRegistryNotReady
+from django.core.exceptions import AppRegistryNotReady, ValidationError
 from django.db.models.fields.related import OneToOneRel
 from django.db.models.signals import post_init, post_save, pre_save
 from django.utils.dateparse import parse_datetime
@@ -69,6 +69,13 @@ class DateTimeField(Field):
         return parse_datetime(value)
 
 
+class BooleanField(Field):
+    def to_python(self, value: Any) -> bool:
+        if value is None:
+            raise ValidationError('"None" value must be either True or False.')
+        return bool(value)
+
+
 class FakeModel:
     a_key = "a value"
     another = "something else"
@@ -102,6 +109,22 @@ class DeferredModel:
 
     def get_deferred_fields(self) -> set[str]:
         return {"b"}
+
+
+class BooleanFieldModel:
+    is_active: bool | None = None
+    name: str = "test"
+
+    class _meta:
+        @staticmethod
+        def get_fields() -> list[Field]:
+            return [
+                BooleanField("is_active"),
+                Field("name"),
+            ]
+
+    def get_deferred_fields(self) -> set[str]:
+        return set()
 
 
 class MockOneToOneRel(OneToOneRel):
@@ -168,6 +191,37 @@ class TestGeneral:
         post_init.send(instance=obj, sender=DeferredModel)
 
         assert list(obj._fieldsignals_originals.values()) == [{"a": 1}]
+
+    def test_boolean_field_with_none(self) -> None:
+        """
+        BooleanField.to_python(None) raises ValidationError.
+        Ensure post_init doesn't crash when field value is None.
+        """
+        with must_be_called(False) as test_func:
+            pre_save_changed.connect(test_func, sender=BooleanFieldModel)
+
+            obj = BooleanFieldModel()
+            # Should not raise ValidationError
+            post_init.send(instance=obj, sender=BooleanFieldModel)
+
+            # Only 'name' field should be tracked (is_active skipped due to ValidationError)
+            assert list(obj._fieldsignals_originals.values()) == [{"name": "test"}]
+
+    def test_boolean_field_transition_to_valid(self) -> None:
+        """
+        When a BooleanField transitions from invalid (None) to valid (True/False),
+        the signal should fire with old_value=None.
+        """
+        with must_be_called(True) as func:
+            pre_save_changed.connect(func, sender=BooleanFieldModel, fields=["is_active"])
+
+            obj = BooleanFieldModel()
+            post_init.send(instance=obj, sender=BooleanFieldModel)
+
+            obj.is_active = True
+            pre_save.send(instance=obj, sender=BooleanFieldModel)
+
+        assert func.kwargs["changed_fields"] == {"is_active": (None, True)}
 
 
 class TestPostSave:
