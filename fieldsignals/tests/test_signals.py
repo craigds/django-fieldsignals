@@ -52,6 +52,7 @@ class Field:
         self.attname = name
         self.many_to_many = m2m
         self.one_to_many = False
+        self.concrete = True
 
     def value_from_object(self, instance: Any) -> Any:
         return getattr(instance, self.name)
@@ -144,6 +145,29 @@ class FakeModelWithOneToOne:
             return [Field("f"), MockOneToOneRel("o2o")]
 
 
+class VirtualField:
+    """Mock GenericForeignKey - virtual field with no database column."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.many_to_many = False
+        self.one_to_many = False
+        self.concrete = False
+
+
+class FakeModelWithVirtualField:
+    f = "a value"
+    gfk = None
+
+    class _meta:
+        @staticmethod
+        def get_fields() -> list[Field | VirtualField]:
+            return [Field("f"), VirtualField("gfk")]
+
+    def get_deferred_fields(self) -> set[str]:
+        return set()
+
+
 class TestGeneral:
     @pytest.fixture(autouse=True)
     def ready(self) -> None:
@@ -157,9 +181,7 @@ class TestGeneral:
     def test_one_to_one_rel_field_error(self) -> None:
         with must_be_called(False) as func:
             with pytest.raises(ValueError):
-                post_save_changed.connect(
-                    func, sender=FakeModelWithOneToOne, fields=["o2o", "f"]
-                )
+                post_save_changed.connect(func, sender=FakeModelWithOneToOne, fields=["o2o", "f"])
 
     def test_one_to_one_rel_excluded(self) -> None:
         with must_be_called(False) as func:
@@ -222,6 +244,23 @@ class TestGeneral:
             pre_save.send(instance=obj, sender=BooleanFieldModel)
 
         assert func.kwargs["changed_fields"] == {"is_active": (None, True)}
+
+    def test_virtual_field_excluded(self) -> None:
+        """Virtual fields like GenericForeignKey are auto-skipped."""
+        with must_be_called(False) as func:
+            post_save_changed.connect(func, sender=FakeModelWithVirtualField)
+
+            obj = FakeModelWithVirtualField()
+            post_init.send(instance=obj, sender=FakeModelWithVirtualField)
+            post_save.send(instance=obj, sender=FakeModelWithVirtualField)
+
+    def test_virtual_field_error(self) -> None:
+        """Explicitly requesting a virtual field raises clear error."""
+        with must_be_called(False) as func:
+            with pytest.raises(
+                ValueError, match="doesn't handle virtual fields.*gfk.*VirtualField"
+            ):
+                post_save_changed.connect(func, sender=FakeModelWithVirtualField, fields=["gfk"])
 
 
 class TestPostSave:
